@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BIA HÀ NỘI - Netflix Edition</title>
+    <title>BIA HÀ NỘI - Multi-Server Edition</title>
 
     <link rel="dns-prefetch" href="https://vsmov.com">
     <link rel="dns-prefetch" href="https://ophim1.com">
+    <link rel="dns-prefetch" href="https://phimapi.com">
     <link rel="dns-prefetch" href="https://img.ophim.live">
+    <link rel="dns-prefetch" href="https://phimimg.com">
     
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
@@ -16,10 +18,10 @@
             --bg-main: #070707;
             --bg-card: #121212;
             --bhn-gold: #ffc72c;
-            --bhn-red: #e50914; /* Chuẩn đỏ Netflix kết hợp */
+            --bhn-red: #e50914;
             --text-main: #ffffff;
             --text-sub: #999999;
-            --glass-bg: rgba(18, 18, 18, 0.72);
+            --glass-bg: rgba(18, 18, 18, 0.75);
             --glass-border: rgba(255, 255, 255, 0.08);
             --glass-blur: blur(24px);
             --gold-glow: 0 0 20px rgba(255, 199, 44, 0.3);
@@ -57,7 +59,7 @@
         }
         .splash-logo span { color: var(--bhn-red); text-shadow: 0 0 10px var(--bhn-red); }
 
-        /* Header Kính Lỏng Chuẩn Netflix */
+        /* Header Kính Lỏng */
         header { 
             position: sticky; top: 0; z-index: 1000; 
             background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); 
@@ -124,7 +126,7 @@
         .ep-item { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--glass-border); padding: 8px 0; text-align: center; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .ep-item.active { background: var(--bhn-red); color: #fff; font-weight: 900; border-color: var(--bhn-red); box-shadow: var(--red-glow); }
 
-        /* Danh sách phim chuẩn Rổ Phim / Netflix */
+        /* Danh sách phim */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; }
         .section-title { font-size: 15px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
         .section-title::before { content: ''; width: 4px; height: 15px; background: var(--bhn-gold); border-radius: 2px; box-shadow: var(--gold-glow); }
@@ -168,13 +170,13 @@
     <!-- Splash Screen -->
     <div id="splash-screen">
         <div class="splash-logo">BIA <span>HÀ NỘI</span></div>
-        <div style="color: var(--text-sub); font-size: 11px; margin-top: 12px; letter-spacing: 1px;">Khởi động hệ thống kính lỏng...</div>
+        <div style="color: var(--text-sub); font-size: 11px; margin-top: 12px; letter-spacing: 1px;">Kích hoạt đa luồng Kính lỏng...</div>
     </div>
 
     <!-- Header -->
     <header>
         <div class="logo" onclick="loadHome()">
-            🍺 BIA HÀ NỘI <span class="logo-badge">NETFLIX</span>
+            🍺 BIA HÀ NỘI <span class="logo-badge">PRO</span>
         </div>
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Tìm phim..." onkeypress="if(event.key==='Enter') searchMovie()">
@@ -259,50 +261,66 @@
     <script>
         const VSMOV_API = 'https://vsmov.com/api';
         const OPHIM_API = 'https://ophim1.com';
+        const KKPHIM_API = 'https://phimapi.com';
         const OPHIM_IMG = 'https://img.ophim.live/uploads/movies/';
+        const KKPHIM_IMG = 'https://phimimg.com/uploads/movies/';
         
         let currentMovieData = null;
         let currentEpData = null;
         let currentMode = 'embed';
         let hlsPlayer = null;
 
-        // Hệ thống Cache thông minh kết hợp đa nguồn API chống load lâu
+        // Hệ thống Cache & Đa luồng tự động luân phiên Vsmov -> Ophim -> KKPhim
         async function fetchSmart(endpoint) {
-            const cacheKey = 'bhn_' + endpoint;
+            const cacheKey = 'bhn_multi_' + endpoint;
             const cached = sessionStorage.getItem(cacheKey);
             if (cached) return JSON.parse(cached);
 
-            // Thử gọi API Vsmov trước
-            try {
-                let url = endpoint.startsWith('http') ? endpoint : `${VSMOV_API}${endpoint}`;
-                const res = await fetch(url);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && (data.items || data.data || data.movie)) {
-                        sessionStorage.setItem(cacheKey, JSON.stringify(data));
-                        return data;
-                    }
-                }
-            } catch (err) {
-                console.warn("Vsmov API lỗi, chuyển sang Ophim backup...");
+            let urlsToTry = [];
+
+            if (endpoint.includes('phim-moi-cap-nhat')) {
+                urlsToTry = [
+                    `${VSMOV_API}${endpoint}`,
+                    `${OPHIM_API}/danh-sach/phim-moi-cap-nhat?page=1`,
+                    `${KKPHIM_API}/danh-sach/phim-moi-cap-nhat?page=1`
+                ];
+            } else if (endpoint.startsWith('/phim/')) {
+                const slug = endpoint.replace('/phim/', '');
+                urlsToTry = [
+                    `${VSMOV_API}/phim/${slug}`,
+                    `${OPHIM_API}/phim/${slug}`,
+                    `${KKPHIM_API}/phim/${slug}`
+                ];
+            } else if (endpoint.includes('tim-kiem')) {
+                const query = endpoint.split('keyword=')[1] || '';
+                urlsToTry = [
+                    `${VSMOV_API}${endpoint}`,
+                    `${OPHIM_API}/v1/api/tim-kiem?keyword=${query}`,
+                    `${KKPHIM_API}/v1/api/tim-kiem?keyword=${query}`
+                ];
+            } else if (endpoint.includes('danh-sach/')) {
+                urlsToTry = [
+                    `${VSMOV_API}${endpoint}`,
+                    `${OPHIM_API}/v1/api${endpoint.replace('/api', '')}?page=1`,
+                    `${KKPHIM_API}/v1/api${endpoint.replace('/api', '')}?page=1`
+                ];
+            } else {
+                urlsToTry = [`${VSMOV_API}${endpoint}`, `${OPHIM_API}${endpoint}`];
             }
 
-            // Fallback sang Ophim API nếu Vsmov chậm hoặc lỗi
-            try {
-                let fallbackUrl = endpoint;
-                if (endpoint.includes('phim-moi-cap-nhat')) fallbackUrl = `${OPHIM_API}/danh-sach/phim-moi-cap-nhat?page=1`;
-                else if (endpoint.includes('phim/')) fallbackUrl = `${OPHIM_API}${endpoint.replace('/api', '')}`;
-                else if (endpoint.includes('tim-kiem')) fallbackUrl = endpoint.replace('/api/tim-kiem', `${OPHIM_API}/v1/api/tim-kiem`);
-                else if (endpoint.includes('danh-sach/')) fallbackUrl = `${OPHIM_API}/v1/api${endpoint.replace('/api', '')}?page=1`;
-
-                const res2 = await fetch(fallbackUrl);
-                if (res2.ok) {
-                    const data2 = await res2.json();
-                    sessionStorage.setItem(cacheKey, JSON.stringify(data2));
-                    return data2;
+            for (let url of urlsToTry) {
+                try {
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && (data.items || data.data || data.movie)) {
+                            sessionStorage.setItem(cacheKey, JSON.stringify(data));
+                            return data;
+                        }
+                    }
+                } catch (err) {
+                    // Tiếp tục thử nguồn tiếp theo nếu nguồn này lỗi/chậm
                 }
-            } catch (e) {
-                console.error("Lỗi tất cả nguồn API:", e);
             }
             return null;
         }
@@ -310,6 +328,7 @@
         function getImgUrl(path) {
             if (!path) return 'https://via.placeholder.com/150x220?text=BIA+HA+NOI';
             if (path.startsWith('http')) return path;
+            if (path.includes('ophim')) return OPHIM_IMG + path;
             return OPHIM_IMG + path;
         }
 
@@ -432,7 +451,7 @@
             playerSec.style.display = 'block';
 
             document.getElementById('playerTitle').innerText = 'Đang tải nguồn phim...';
-            document.getElementById('serversList').innerHTML = '<div style="color:var(--bhn-gold);font-size:11px;">Đang quét máy chủ...</div>';
+            document.getElementById('serversList').innerHTML = '<div style="color:var(--bhn-gold);font-size:11px;">Đang quét đa luồng...</div>';
             document.getElementById('episodesList').innerHTML = '';
 
             const data = await fetchSmart(`/phim/${slug}`);
