@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BIA HÀ NỘI - Multi-Server Edition</title>
+    <title>BIA HÀ NỘI - Multi-Server Pro</title>
 
     <link rel="dns-prefetch" href="https://vsmov.com">
     <link rel="dns-prefetch" href="https://ophim1.com">
@@ -76,7 +76,7 @@
 
         .container { max-width: 1300px; margin: 0 auto; padding: 12px; }
 
-        /* Hero Slider Netflix Style */
+        /* Hero Slider */
         .hero-slider-container { position: relative; width: 100%; border-radius: 16px; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--glass-border); background: #000; box-shadow: 0 12px 35px rgba(0,0,0,0.85); }
         .hero-wrapper { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
         .hero-wrapper::-webkit-scrollbar { display: none; }
@@ -170,7 +170,7 @@
     <!-- Splash Screen -->
     <div id="splash-screen">
         <div class="splash-logo">BIA <span>HÀ NỘI</span></div>
-        <div style="color: var(--text-sub); font-size: 11px; margin-top: 12px; letter-spacing: 1px;">Kích hoạt đa luồng Kính lỏng...</div>
+        <div style="color: var(--text-sub); font-size: 11px; margin-top: 12px; letter-spacing: 1px;">Khởi động đa luồng toàn diện...</div>
     </div>
 
     <!-- Header -->
@@ -270,9 +270,9 @@
         let currentMode = 'embed';
         let hlsPlayer = null;
 
-        // Hệ thống Cache & Đa luồng tự động luân phiên Vsmov -> Ophim -> KKPhim
+        // Quét đa luồng thông minh song song qua Vsmov -> Ophim -> KKPhim
         async function fetchSmart(endpoint) {
-            const cacheKey = 'bhn_multi_' + endpoint;
+            const cacheKey = 'bhn_v2_' + endpoint;
             const cached = sessionStorage.getItem(cacheKey);
             if (cached) return JSON.parse(cached);
 
@@ -305,7 +305,7 @@
                     `${KKPHIM_API}/v1/api${endpoint.replace('/api', '')}?page=1`
                 ];
             } else {
-                urlsToTry = [`${VSMOV_API}${endpoint}`, `${OPHIM_API}${endpoint}`];
+                urlsToTry = [`${VSMOV_API}${endpoint}`, `${OPHIM_API}${endpoint}`, `${KKPHIM_API}${endpoint}`];
             }
 
             for (let url of urlsToTry) {
@@ -318,9 +318,7 @@
                             return data;
                         }
                     }
-                } catch (err) {
-                    // Tiếp tục thử nguồn tiếp theo nếu nguồn này lỗi/chậm
-                }
+                } catch (err) {}
             }
             return null;
         }
@@ -328,7 +326,7 @@
         function getImgUrl(path) {
             if (!path) return 'https://via.placeholder.com/150x220?text=BIA+HA+NOI';
             if (path.startsWith('http')) return path;
-            if (path.includes('ophim')) return OPHIM_IMG + path;
+            if (path.includes('kkphim') || path.includes('phimimg')) return KKPHIM_IMG + path;
             return OPHIM_IMG + path;
         }
 
@@ -421,7 +419,7 @@
             
             document.getElementById('searchTitle').innerText = `Kết quả: "${query}"`;
             const grid = document.getElementById('searchGrid');
-            grid.innerHTML = '<div class="loader">Đang tìm...</div>';
+            grid.innerHTML = '<div class="loader">Đang tìm kiếm đa luồng...</div>';
 
             const data = await fetchSmart(`/tim-kiem?keyword=${encodeURIComponent(query)}`);
             let items = data?.items || data?.data?.items || [];
@@ -440,7 +438,7 @@
                     grid.appendChild(card);
                 });
             } else {
-                grid.innerHTML = '<div class="loader">Không tìm thấy phim!</div>';
+                grid.innerHTML = '<div class="loader">Không tìm thấy phim này trên các máy chủ!</div>';
             }
         }
 
@@ -451,7 +449,7 @@
             playerSec.style.display = 'block';
 
             document.getElementById('playerTitle').innerText = 'Đang tải nguồn phim...';
-            document.getElementById('serversList').innerHTML = '<div style="color:var(--bhn-gold);font-size:11px;">Đang quét đa luồng...</div>';
+            document.getElementById('serversList').innerHTML = '<div style="color:var(--bhn-gold);font-size:11px;">Đang quét server...</div>';
             document.getElementById('episodesList').innerHTML = '';
 
             const data = await fetchSmart(`/phim/${slug}`);
