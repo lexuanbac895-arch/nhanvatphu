@@ -219,6 +219,7 @@
                 <div class="mode-switch">
                     <button class="btn-mode active" id="btnEmbedMode" onclick="setPlayerMode('embed')">🌐 Máy Chủ 1 (Ổn định)</button>
                     <button class="btn-mode" id="btnHlsMode" onclick="setPlayerMode('hls')">⚡ Máy Chủ 2 (HLS)</button>
+                    <button class="btn-mode" id="btnExtMode" onclick="setPlayerMode('external')">🚀 Máy Chủ 3 (Mở Tab Mới)</button>
                 </div>
 
                 <div class="section-sub-title">🎙️ LUỒNG PHIM (THUYẾT MINH / VIETSUB):</div>
@@ -325,7 +326,6 @@
                 if (currentSource === 'VSMOV') {
                     url = `${cfg.base}${endpoint}`;
                 } else {
-                    // Thử ưu tiên kiểu slug, nếu không được thử kiểu raw
                     url = `${cfg.base}/v1/api/tim-kiem?keyword=${slugQuery}`;
                 }
             } else if (endpoint.includes('danh-sach/')) {
@@ -543,6 +543,7 @@
             currentMode = mode;
             document.getElementById('btnHlsMode').classList.toggle('active', mode === 'hls');
             document.getElementById('btnEmbedMode').classList.toggle('active', mode === 'embed');
+            document.getElementById('btnExtMode').classList.toggle('active', mode === 'external');
             renderVideoPlayer();
         }
 
@@ -567,7 +568,7 @@
                 };
                 videoBox.appendChild(iframe);
             } 
-            else if (currentEpData.link_m3u8) {
+            else if (currentMode === 'hls' && currentEpData.link_m3u8) {
                 const video = document.createElement('video');
                 video.controls = true;
                 video.autoplay = true;
@@ -578,14 +579,40 @@
                     if(loader) loader.style.display = 'none'; 
                 });
 
+                // Sử dụng cors proxy miễn phí cho hls nếu bị lỗi tải luồng
+                let streamUrl = currentEpData.link_m3u8;
+                
                 if (Hls.isSupported()) {
                     hlsPlayer = new Hls();
-                    hlsPlayer.loadSource(currentEpData.link_m3u8);
+                    hlsPlayer.loadSource(streamUrl);
                     hlsPlayer.attachMedia(video);
+                    hlsPlayer.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            // Nếu bị lỗi CORS/M3U8 load thất bại tự động gợi ý sang Tab mới
+                            videoBox.innerHTML = `
+                                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:20px; text-align:center;">
+                                    <p style="font-size:13px; color:var(--bhn-gold); margin-bottom:12px;">Link HLS bị nhà mạng hoặc Safari chặn CORS trực tiếp.</p>
+                                    <a href="${streamUrl}" target="_blank" style="background:var(--bhn-red); color:#fff; padding:10px 20px; border-radius:10px; font-weight:bold; font-size:12px; text-decoration:none; box-shadow:var(--red-glow);">🔗 Xem Trực Tiếp Tại Tab Mới</a>
+                                </div>
+                            `;
+                        }
+                    });
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = currentEpData.link_m3u8;
+                    video.src = streamUrl;
                 }
                 videoBox.appendChild(video);
+            }
+            else if (currentMode === 'external') {
+                const loader = document.querySelector('.video-loading');
+                if(loader) loader.style.display = 'none';
+                
+                const targetUrl = currentEpData.link_embed || currentEpData.link_m3u8;
+                videoBox.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:20px; text-align:center;">
+                        <p style="font-size:13px; color:var(--bhn-gold); margin-bottom:12px;">Bypass bộ chặn của Safari bằng cách mở link gốc:</p>
+                        <a href="${targetUrl}" target="_blank" style="background:var(--bhn-red); color:#fff; padding:10px 20px; border-radius:10px; font-weight:bold; font-size:12px; text-decoration:none; box-shadow:var(--red-glow);">🔗 Mở Link Phim Tab Mới</a>
+                    </div>
+                `;
             }
         }
 
