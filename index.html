@@ -3,131 +3,629 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BIA HÀ NỘI - Multi-Source Selector</title>
+    <title>BIA HÀ NỘI - Multi-Source Pro</title>
+
+    <link rel="dns-prefetch" href="https://vsmov.com">
+    <link rel="dns-prefetch" href="https://ophim1.com">
+    <link rel="dns-prefetch" href="https://phimapi.com">
+    <link rel="dns-prefetch" href="https://img.ophim.live">
+    <link rel="dns-prefetch" href="https://phimimg.com">
+    
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
     <style>
-        :root { --bg: #070707; --gold: #ffc72c; --red: #e50914; --glass: rgba(255,255,255,0.05); }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; padding-bottom: 80px; }
-        .container { padding: 15px; }
-        .source-selector { display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding: 5px; }
-        .btn-source { background: #222; border: 1px solid #444; color: #fff; padding: 8px 15px; border-radius: 8px; cursor: pointer; white-space: nowrap; font-size: 12px; }
-        .btn-source.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: bold; }
-        .movie-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .card { background: #111; border-radius: 8px; overflow: hidden; cursor: pointer; }
-        .card img { width: 100%; height: 200px; object-fit: cover; }
-        .card-title { padding: 10px; font-size: 13px; font-weight: bold; }
-        /* Player styles */
-        #player-section { display: none; }
-        .video-box { width: 100%; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
-        iframe, video { width: 100%; height: 100%; border: none; }
-        .ep-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-        .btn-ep { background: #222; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-        .btn-ep.active { background: var(--red); }
+        :root {
+            --bg-main: #070707;
+            --bg-card: #121212;
+            --bhn-gold: #ffc72c;
+            --bhn-red: #e50914;
+            --text-main: #ffffff;
+            --text-sub: #999999;
+            --glass-bg: rgba(18, 18, 18, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-blur: blur(24px);
+            --gold-glow: 0 0 20px rgba(255, 199, 44, 0.3);
+            --red-glow: 0 0 22px rgba(229, 9, 20, 0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-main); color: var(--text-main); padding-bottom: 85px; overflow-x: hidden; }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 199, 44, 0.4), inset 0 0 10px rgba(255, 199, 44, 0.2); transform: scale(1); }
+            50% { box-shadow: 0 0 30px rgba(255, 199, 44, 0.8), inset 0 0 20px rgba(255, 199, 44, 0.4); transform: scale(1.03); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Splash Screen Kính Lỏng */
+        #splash-screen { position: fixed; inset: 0; background: rgba(5, 5, 5, 0.96); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease, visibility 0.4s; }
+        .splash-logo { 
+            font-size: 28px; font-weight: 900; color: var(--bhn-gold); letter-spacing: 2px; text-transform: uppercase; 
+            border: 2px solid var(--bhn-gold); padding: 12px 24px; border-radius: 14px; text-align: center;
+            animation: pulseGlow 1.5s infinite ease-in-out; background: rgba(255, 199, 44, 0.05);
+        }
+        .splash-logo span { color: var(--bhn-red); text-shadow: 0 0 10px var(--bhn-red); }
+
+        /* Header Kính Lỏng */
+        header { 
+            position: sticky; top: 0; z-index: 1000; 
+            background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); 
+            padding: 12px 16px; display: flex; flex-direction: column; gap: 10px;
+            border-bottom: 1px solid var(--glass-border); 
+        }
+        .header-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .logo { font-size: 17px; font-weight: 900; text-decoration: none; color: var(--bhn-gold); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .logo-badge { background: linear-gradient(135deg, var(--bhn-red), #990000); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 800; box-shadow: var(--red-glow); }
+
+        .search-box { display: flex; align-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--glass-border); border-radius: 20px; padding: 6px 14px; flex-grow: 1; max-width: 180px; transition: 0.3s; }
+        .search-box:focus-within { border-color: var(--bhn-gold); box-shadow: var(--gold-glow); background: rgba(255,255,255,0.1); }
+        .search-box input { border: none; background: transparent; color: #fff; outline: none; width: 100%; font-size: 12px; }
+        .search-box button { border: none; background: transparent; color: var(--bhn-gold); cursor: pointer; font-weight: bold; }
+
+        /* Thanh chọn nguồn ngay dưới header */
+        .source-bar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+        .source-bar::-webkit-scrollbar { display: none; }
+        .btn-source { 
+            background: rgba(255, 255, 255, 0.06); color: var(--text-sub); border: 1px solid var(--glass-border); 
+            padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: 0.2s; 
+        }
+        .btn-source.active { background: var(--bhn-gold); color: #000; border-color: var(--bhn-gold); box-shadow: var(--gold-glow); }
+
+        .container { max-width: 1300px; margin: 0 auto; padding: 12px; }
+
+        /* Hero Slider */
+        .hero-slider-container { position: relative; width: 100%; border-radius: 16px; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--glass-border); background: #000; box-shadow: 0 12px 35px rgba(0,0,0,0.85); }
+        .hero-wrapper { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .hero-wrapper::-webkit-scrollbar { display: none; }
+        
+        .hero-slide { flex: 0 0 100%; scroll-snap-align: start; position: relative; height: 380px; display: flex; justify-content: center; align-items: flex-end; }
+        .hero-bg { position: absolute; inset: 0; background-size: cover; background-position: center; filter: brightness(0.4) blur(8px); transform: scale(1.08); }
+        .hero-poster { position: absolute; top: 16px; height: 210px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.9); z-index: 2; object-fit: cover; border: 1px solid var(--glass-border); }
+        
+        .hero-content { position: relative; z-index: 3; width: 100%; padding: 20px 16px 16px; background: linear-gradient(0deg, #070707 85%, transparent 100%); text-align: center; }
+        .hero-title { font-size: 19px; font-weight: 900; color: #fff; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .hero-sub { font-size: 11px; color: var(--text-sub); margin-bottom: 12px; }
+        
+        .btn-play-hero { 
+            background: linear-gradient(90deg, #ffc72c, #fff5cc, #ffc72c); background-size: 200% 100%;
+            color: #000; border: none; padding: 9px 22px; border-radius: 22px; font-weight: 900; font-size: 12px; cursor: pointer; 
+            box-shadow: var(--gold-glow); display: inline-flex; align-items: center; gap: 6px; 
+            animation: shimmer 3s infinite linear;
+        }
+
+        /* Khung Player Kính Lỏng */
+        #player-section { 
+            display: none; margin-bottom: 24px; 
+            background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); 
+            border-radius: 16px; overflow: hidden; border: 1px solid var(--bhn-gold); box-shadow: var(--gold-glow); 
+            animation: fadeIn 0.3s ease; 
+        }
+        .video-container { position: relative; padding-top: 56.25%; background: #000; display: flex; align-items: center; justify-content: center; }
+        .video-container video, .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; z-index: 2; }
+        
+        .video-loading { position: absolute; width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--bhn-gold); border-radius: 50%; animation: spin 0.7s linear infinite; z-index: 1; }
+
+        .player-details { padding: 16px; }
+        .player-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+
+        .mode-switch { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+        .btn-mode { background: rgba(255,255,255,0.06); color: #fff; border: 1px solid var(--glass-border); padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-mode.active { background: var(--bhn-red); border-color: var(--bhn-red); box-shadow: var(--red-glow); }
+
+        .section-sub-title { font-size: 11px; font-weight: 800; color: var(--bhn-gold); margin: 14px 0 6px; display: flex; align-items: center; gap: 6px; text-transform: uppercase;}
+        
+        .server-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+        .server-grid::-webkit-scrollbar { display: none; }
+        .server-item { background: rgba(255, 255, 255, 0.06); color: #fff; border: 1px solid var(--glass-border); padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+        .server-item.active { background: var(--bhn-gold); color: #000; border-color: var(--bhn-gold); box-shadow: var(--gold-glow); }
+
+        .ep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; max-height: 180px; overflow-y: auto; margin-top: 6px; }
+        .ep-item { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--glass-border); padding: 8px 0; text-align: center; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .ep-item.active { background: var(--bhn-red); color: #fff; font-weight: 900; border-color: var(--bhn-red); box-shadow: var(--red-glow); }
+
+        /* Danh sách phim */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; }
+        .section-title { font-size: 15px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .section-title::before { content: ''; width: 4px; height: 15px; background: var(--bhn-gold); border-radius: 2px; box-shadow: var(--gold-glow); }
+
+        .horizontal-scroll { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 4px 2px 10px; }
+        .horizontal-scroll::-webkit-scrollbar { display: none; }
+
+        .movie-card-row { 
+            flex: 0 0 115px; background: var(--bg-card); border-radius: 10px; overflow: hidden; 
+            border: 1px solid var(--glass-border); cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease;
+            animation: fadeIn 0.3s ease;
+        }
+        @media (min-width: 600px) { .movie-card-row { flex: 0 0 145px; } }
+        .movie-card-row:active { transform: scale(0.95); border-color: var(--bhn-gold); }
+
+        .poster-wrapper { position: relative; padding-top: 145%; background: #181818; overflow: hidden; }
+        .poster-wrapper img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+
+        .badge-quality { position: absolute; top: 5px; right: 5px; background: var(--bhn-red); color: #fff; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+
+        .card-info { padding: 8px; }
+        .card-title { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+
+        /* Bottom Nav Kính Lỏng */
+        .bottom-nav { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); 
+            border-top: 1px solid var(--glass-border); display: flex; justify-content: space-around; padding: 9px 0 13px 0; z-index: 1000; 
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-sub); text-decoration: none; font-size: 10px; font-weight: 600; gap: 3px; cursor: pointer; transition: 0.2s; }
+        .nav-item.active { color: var(--bhn-gold); transform: translateY(-2px); }
+        .nav-item svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .loader { text-align: center; padding: 30px; color: var(--bhn-gold); font-size: 13px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3>Chọn nguồn phim:</h3>
-        <div class="source-selector">
-            <button class="btn-source active" onclick="changeSource('OPHIM', this)">Ophim</button>
-            <button class="btn-source" onclick="changeSource('KKPHIM', this)">KKPhim</button>
-            <button class="btn-source" onclick="changeSource('VSMOV', this)">VSMov</button>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="splash-logo">BIA <span>HÀ NỘI</span></div>
+        <div style="color: var(--text-sub); font-size: 11px; margin-top: 12px; letter-spacing: 1px;">Khởi động giao diện Pro...</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-top">
+            <div class="logo" onclick="loadHome()">
+                🍺 BIA HÀ NỘI <span class="logo-badge">PRO</span>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Tìm phim..." onkeypress="if(event.key==='Enter') searchMovie()">
+                <button onclick="searchMovie()">🔍</button>
+            </div>
         </div>
-        
-        <div id="search-box" style="margin-bottom: 15px;">
-            <input type="text" id="searchInput" placeholder="Tìm phim...">
-            <button onclick="searchMovie()">Tìm</button>
+        <!-- Thanh chọn nguồn nằm ngay dưới Bia Hà Nội -->
+        <div class="source-bar">
+            <button class="btn-source active" id="btnSrcOphim" onclick="changeSource('OPHIM')">🟢 Ophim</button>
+            <button class="btn-source" id="btnSrcKkphim" onclick="changeSource('KKPHIM')">🔵 KKPhim</button>
+            <button class="btn-source" id="btnSrcVsmov" onclick="changeSource('VSMOV')">🔴 VSMov</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Hero Slider -->
+        <div id="heroContainer" class="hero-slider-container" style="display:none;">
+            <div class="hero-wrapper" id="heroWrapper"></div>
         </div>
 
-        <div id="mainContent" class="movie-grid"></div>
+        <!-- Khung Player Kính Lỏng -->
         <div id="player-section">
-            <div class="video-box" id="videoBox"></div>
-            <div id="epList" class="ep-list"></div>
+            <div class="video-container" id="videoBox">
+                <div class="video-loading"></div>
+            </div>
+            <div class="player-details">
+                <h2 class="player-title" id="playerTitle">Đang kết nối...</h2>
+                
+                <div class="mode-switch">
+                    <button class="btn-mode active" id="btnEmbedMode" onclick="setPlayerMode('embed')">🌐 Máy Chủ 1 (Ổn định)</button>
+                    <button class="btn-mode" id="btnHlsMode" onclick="setPlayerMode('hls')">⚡ Máy Chủ 2 (HLS)</button>
+                </div>
+
+                <div class="section-sub-title">🎙️ LUỒNG PHIM (THUYẾT MINH / VIETSUB):</div>
+                <div class="server-grid" id="serversList"></div>
+
+                <div class="section-sub-title">🎬 CHỌN TẬP PHIM:</div>
+                <div class="ep-grid" id="episodesList"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent">
+            <div class="section-header">
+                <div class="section-title">Phim Mới Cập Nhật</div>
+            </div>
+            <div class="horizontal-scroll" id="rowPhimMoi"></div>
+
+            <div class="section-header">
+                <div class="section-title">Phim Bộ Hot</div>
+            </div>
+            <div class="horizontal-scroll" id="rowPhimBo"></div>
+
+            <div class="section-header">
+                <div class="section-title">Phim Lẻ Chiếu Rạp</div>
+            </div>
+            <div class="horizontal-scroll" id="rowPhimLe"></div>
+        </div>
+
+        <!-- Search / Category Content -->
+        <div id="searchContent" style="display:none;">
+            <div class="section-header">
+                <div class="section-title" id="searchTitle">Kết Quả</div>
+            </div>
+            <div class="movie-grid" id="searchGrid"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="bottom-nav">
+        <div class="nav-item active" id="navHome" onclick="loadHome()">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span>Trang chủ</span>
+        </div>
+        <div class="nav-item" id="navBo" onclick="loadCategoryList('phim-bo', 'Phim Bộ')">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/></svg>
+            <span>Phim Bộ</span>
+        </div>
+        <div class="nav-item" id="navLe" onclick="loadCategoryList('phim-le', 'Phim Lẻ')">
+            <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H3v16h18V4z"/></svg>
+            <span>Phim Lẻ</span>
+        </div>
+        <div class="nav-item" id="navSearch" onclick="document.getElementById('searchInput').focus()">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <span>Tìm kiếm</span>
         </div>
     </div>
 
     <script>
-        let currentSource = 'OPHIM'; // Mặc định
-        const API_MAP = {
+        let currentSource = 'OPHIM'; // Mặc định nguồn Ophim
+        const SOURCES = {
             'OPHIM': { base: 'https://ophim1.com', img: 'https://img.ophim.live/uploads/movies/' },
             'KKPHIM': { base: 'https://phimapi.com', img: 'https://phimimg.com/uploads/movies/' },
             'VSMOV': { base: 'https://vsmov.com/api', img: '' }
         };
+        
+        let currentMovieData = null;
+        let currentEpData = null;
+        let currentMode = 'embed';
+        let hlsPlayer = null;
 
-        function removeTones(str) {
-            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+        function removeVietnameseTones(str) {
+            return str.normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                      .toLowerCase()
+                      .trim();
         }
 
-        function changeSource(source, btn) {
-            currentSource = source;
+        function changeSource(srcKey) {
+            currentSource = srcKey;
             document.querySelectorAll('.btn-source').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            if(srcKey === 'OPHIM') document.getElementById('btnSrcOphim').classList.add('active');
+            if(srcKey === 'KKPHIM') document.getElementById('btnSrcKkphim').classList.add('active');
+            if(srcKey === 'VSMOV') document.getElementById('btnSrcVsmov').classList.add('active');
+            
             loadHome();
         }
 
-        async function fetchAPI(path, isSearch = false, query = '') {
+        async function fetchFromSource(endpoint) {
+            const cfg = SOURCES[currentSource];
             let url = '';
-            if (isSearch) {
-                const slug = removeTones(query).replace(/\s+/g, '-');
-                if (currentSource === 'VSMOV') url = `${API_MAP.VSMOV.base}/tim-kiem?keyword=${query}`;
-                else url = `${API_MAP[currentSource].base}/v1/api/tim-kiem?keyword=${slug}`;
+
+            if (endpoint.includes('phim-moi-cap-nhat')) {
+                if (currentSource === 'VSMOV') url = `${cfg.base}${endpoint}`;
+                else url = `${cfg.base}/danh-sach/phim-moi-cap-nhat?page=1`;
+            } else if (endpoint.startsWith('/phim/')) {
+                const slug = endpoint.replace('/phim/', '');
+                url = `${cfg.base}/phim/${slug}`;
+            } else if (endpoint.includes('tim-kiem')) {
+                const query = endpoint.split('keyword=')[1] || '';
+                const rawQuery = decodeURIComponent(query);
+                const slugQuery = removeVietnameseTones(rawQuery).replace(/\s+/g, '-');
+                
+                if (currentSource === 'VSMOV') {
+                    url = `${cfg.base}${endpoint}`;
+                } else {
+                    // Thử ưu tiên kiểu slug, nếu không được thử kiểu raw
+                    url = `${cfg.base}/v1/api/tim-kiem?keyword=${slugQuery}`;
+                }
+            } else if (endpoint.includes('danh-sach/')) {
+                if (currentSource === 'VSMOV') url = `${cfg.base}${endpoint}`;
+                else url = `${cfg.base}/v1/api${endpoint.replace('/api', '')}?page=1`;
             } else {
-                if (currentSource === 'VSMOV') url = `${API_MAP.VSMOV.base}${path}`;
-                else url = `${API_MAP[currentSource].base}/v1/api${path}`;
+                url = `${cfg.base}${endpoint}`;
             }
-            
+
             try {
                 const res = await fetch(url);
-                return await res.json();
-            } catch(e) { return null; }
+                if (res.ok) {
+                    return await res.json();
+                }
+            } catch (err) {}
+            return null;
         }
+
+        function getImgUrl(path) {
+            if (!path) return 'https://via.placeholder.com/150x220?text=BIA+HA+NOI';
+            if (path.startsWith('http')) return path;
+            return SOURCES[currentSource].img + path;
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                setTimeout(() => splash.style.visibility = 'hidden', 350);
+            }, 500);
+        });
 
         async function loadHome() {
             document.getElementById('player-section').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'grid';
-            const data = await fetchAPI('/danh-sach/phim-moi-cap-nhat?page=1');
-            renderMovies(data?.items || data?.data?.items || []);
+            document.getElementById('searchContent').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            updateNav('navHome');
+
+            const data = await fetchFromSource('/danh-sach/phim-moi-cap-nhat?page=1');
+            let items = data?.items || data?.data?.items || [];
+            if(items.length > 0) {
+                renderHeroSlider(items.slice(0, 5));
+                renderRow('rowPhimMoi', items);
+            } else {
+                document.getElementById('rowPhimMoi').innerHTML = '<div class="loader">Nguồn này đang trống hoặc lỗi kết nối!</div>';
+            }
+
+            loadRowCategory('phim-bo', 'rowPhimBo');
+            loadRowCategory('phim-le', 'rowPhimLe');
         }
 
-        function renderMovies(items) {
-            const grid = document.getElementById('mainContent');
-            grid.innerHTML = '';
-            items.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.onclick = () => loadDetail(m.slug);
-                div.innerHTML = `<img src="${m.thumb_url || (API_MAP[currentSource].img + m.poster_url)}"><div class="card-title">${m.name}</div>`;
-                grid.appendChild(div);
+        function renderHeroSlider(items) {
+            const container = document.getElementById('heroContainer');
+            const wrapper = document.getElementById('heroWrapper');
+            container.style.display = 'block';
+            wrapper.innerHTML = '';
+
+            items.forEach(item => {
+                const img = getImgUrl(item.thumb_url || item.poster_url);
+                const slug = item.slug;
+                const slide = document.createElement('div');
+                slide.className = 'hero-slide';
+                slide.innerHTML = `
+                    <div class="hero-bg" style="background-image: url('${img}');"></div>
+                    <img class="hero-poster" src="${img}" alt="${item.name}">
+                    <div class="hero-content">
+                        <div class="hero-title">${item.name}</div>
+                        <div class="hero-sub">${item.origin_name || ''} (${item.year || '2026'})</div>
+                        <button class="btn-play-hero" onclick="loadMovieDetails('${slug}')">▶ XEM PHIM NGAY</button>
+                    </div>
+                `;
+                wrapper.appendChild(slide);
             });
         }
 
-        async function loadDetail(slug) {
-            document.getElementById('mainContent').style.display = 'none';
-            document.getElementById('player-section').style.display = 'block';
-            const data = await fetchAPI(`/phim/${slug}`);
-            const movie = data.movie || data;
-            const eps = data.episodes || [];
-            
-            const epContainer = document.getElementById('epList');
-            epContainer.innerHTML = '';
-            eps[0]?.server_data.forEach(ep => {
-                const b = document.createElement('div');
-                b.className = 'btn-ep';
-                b.innerText = ep.name;
-                b.onclick = () => {
-                    document.getElementById('videoBox').innerHTML = `<iframe src="${ep.link_embed}"></iframe>`;
-                    document.querySelectorAll('.btn-ep').forEach(x => x.classList.remove('active'));
-                    b.classList.add('active');
-                };
-                epContainer.appendChild(b);
+        async function loadRowCategory(slug, targetId) {
+            const row = document.getElementById(targetId);
+            row.innerHTML = '<div class="loader">Đang tải...</div>';
+            const data = await fetchFromSource(`/danh-sach/${slug}?page=1`);
+            let items = data?.items || data?.data?.items || [];
+            if(items.length > 0) {
+                renderRow(targetId, items);
+            } else {
+                row.innerHTML = '';
+            }
+        }
+
+        function renderRow(targetId, items) {
+            const row = document.getElementById(targetId);
+            row.innerHTML = '';
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'movie-card-row';
+                card.onclick = () => loadMovieDetails(item.slug);
+                const img = getImgUrl(item.thumb_url || item.poster_url);
+                card.innerHTML = `
+                    <div class="poster-wrapper"><img src="${img}" loading="lazy"><span class="badge-quality">${item.quality || 'HD'}</span></div>
+                    <div class="card-info"><div class="card-title">${item.name}</div></div>
+                `;
+                row.appendChild(card);
             });
         }
 
         async function searchMovie() {
-            const q = document.getElementById('searchInput').value;
-            if(!q) return;
-            const data = await fetchAPI('', true, q);
-            renderMovies(data?.items || data?.data?.items || []);
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            document.getElementById('heroContainer').style.display = 'none';
+            document.getElementById('player-section').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'none';
+            const searchSec = document.getElementById('searchContent');
+            searchSec.style.display = 'block';
+            
+            document.getElementById('searchTitle').innerText = `Kết quả: "${query}" (${currentSource})`;
+            const grid = document.getElementById('searchGrid');
+            grid.innerHTML = '<div class="loader">Đang tìm kiếm...</div>';
+
+            const data = await fetchFromSource(`/tim-kiem?keyword=${encodeURIComponent(query)}`);
+            let items = data?.items || data?.data?.items || [];
+            if(items.length > 0) {
+                grid.innerHTML = '';
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card-row';
+                    card.style.flex = 'auto';
+                    card.onclick = () => loadMovieDetails(item.slug);
+                    const img = getImgUrl(item.thumb_url || item.poster_url);
+                    card.innerHTML = `
+                        <div class="poster-wrapper"><img src="${img}" loading="lazy"><span class="badge-quality">${item.quality || 'HD'}</span></div>
+                        <div class="card-info"><div class="card-title">${item.name}</div></div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.innerHTML = `<div class="loader">Không tìm thấy phim này trên nguồn ${currentSource}!</div>`;
+            }
+        }
+
+        async function loadMovieDetails(slug) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('heroContainer').style.display = 'none';
+            const playerSec = document.getElementById('player-section');
+            playerSec.style.display = 'block';
+
+            document.getElementById('playerTitle').innerText = 'Đang tải nguồn phim...';
+            document.getElementById('serversList').innerHTML = '<div style="color:var(--bhn-gold);font-size:11px;">Đang quét server...</div>';
+            document.getElementById('episodesList').innerHTML = '';
+
+            const data = await fetchFromSource(`/phim/${slug}`);
+            if(!data) {
+                document.getElementById('playerTitle').innerText = 'Lỗi kết nối nguồn này!';
+                return;
+            }
+
+            currentMovieData = data;
+            const movie = data.movie || data;
+            const episodesData = data.episodes || [];
+            document.getElementById('playerTitle').innerText = movie.name || 'Xem Phim';
+
+            const serversList = document.getElementById('serversList');
+            serversList.innerHTML = '';
+
+            episodesData.forEach((server, index) => {
+                const btn = document.createElement('div');
+                btn.className = `server-item ${index === 0 ? 'active' : ''}`;
+                let serverName = server.server_name || `Nguồn ${index + 1}`;
+                if (serverName.toLowerCase().includes('thuyết minh')) serverName = '🗣️ ' + serverName;
+                else if (serverName.toLowerCase().includes('vietsub')) serverName = '📝 ' + serverName;
+
+                btn.innerText = serverName;
+                btn.onclick = () => selectServer(index, btn);
+                serversList.appendChild(btn);
+            });
+
+            if (episodesData.length > 0) {
+                selectServer(0, serversList.children[0]);
+            }
+        }
+
+        function selectServer(serverIndex, btnEl) {
+            if (btnEl) {
+                document.querySelectorAll('.server-item').forEach(b => b.classList.remove('active'));
+                btnEl.classList.add('active');
+            }
+
+            const server = currentMovieData.episodes[serverIndex];
+            const episodes = server?.server_data || [];
+
+            const epList = document.getElementById('episodesList');
+            epList.innerHTML = '';
+
+            episodes.forEach((ep, index) => {
+                const btn = document.createElement('div');
+                btn.className = `ep-item ${index === 0 ? 'active' : ''}`;
+                btn.innerText = ep.name;
+                btn.onclick = () => playEp(ep, btn);
+                epList.appendChild(btn);
+            });
+
+            if (episodes.length > 0) {
+                playEp(episodes[0], epList.children[0]);
+            }
+        }
+
+        function playEp(epData, btnEl) {
+            currentEpData = epData;
+            if (btnEl) {
+                document.querySelectorAll('.ep-item').forEach(b => b.classList.remove('active'));
+                btnEl.classList.add('active');
+            }
+            renderVideoPlayer();
+        }
+
+        function setPlayerMode(mode) {
+            currentMode = mode;
+            document.getElementById('btnHlsMode').classList.toggle('active', mode === 'hls');
+            document.getElementById('btnEmbedMode').classList.toggle('active', mode === 'embed');
+            renderVideoPlayer();
+        }
+
+        function renderVideoPlayer() {
+            if (!currentEpData) return;
+            const videoBox = document.getElementById('videoBox');
+            videoBox.innerHTML = '<div class="video-loading"></div>';
+
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+
+            if (currentMode === 'embed' && currentEpData.link_embed) {
+                const iframe = document.createElement('iframe');
+                iframe.src = currentEpData.link_embed;
+                iframe.allowFullscreen = true;
+                iframe.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
+                iframe.onload = () => { 
+                    const loader = document.querySelector('.video-loading');
+                    if(loader) loader.style.display = 'none'; 
+                };
+                videoBox.appendChild(iframe);
+            } 
+            else if (currentEpData.link_m3u8) {
+                const video = document.createElement('video');
+                video.controls = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                
+                video.addEventListener('loadeddata', () => { 
+                    const loader = document.querySelector('.video-loading');
+                    if(loader) loader.style.display = 'none'; 
+                });
+
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(currentEpData.link_m3u8);
+                    hlsPlayer.attachMedia(video);
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = currentEpData.link_m3u8;
+                }
+                videoBox.appendChild(video);
+            }
+        }
+
+        function updateNav(activeId) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(activeId)?.classList.add('active');
+        }
+
+        async function loadCategoryList(slug, title) {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('heroContainer').style.display = 'none';
+            document.getElementById('player-section').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'none';
+            
+            const searchSec = document.getElementById('searchContent');
+            searchSec.style.display = 'block';
+            document.getElementById('searchTitle').innerText = `${title} (${currentSource})`;
+            
+            const grid = document.getElementById('searchGrid');
+            grid.innerHTML = '<div class="loader">Đang tải...</div>';
+
+            const data = await fetchFromSource(`/danh-sach/${slug}?page=1`);
+            let items = data?.items || data?.data?.items || [];
+            if(items.length > 0) {
+                grid.innerHTML = '';
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card-row';
+                    card.style.flex = 'auto';
+                    card.onclick = () => loadMovieDetails(item.slug);
+                    const img = getImgUrl(item.thumb_url || item.poster_url);
+                    card.innerHTML = `
+                        <div class="poster-wrapper"><img src="${img}" loading="lazy"><span class="badge-quality">${item.quality || 'HD'}</span></div>
+                        <div class="card-info"><div class="card-title">${item.name}</div></div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.innerHTML = '<div class="loader">Không có dữ liệu!</div>';
+            }
         }
 
         loadHome();
